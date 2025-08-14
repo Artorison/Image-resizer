@@ -1,0 +1,9 @@
+logger:
+  level: info
+  type: text
+
+app:
+  cache_size: 10
+  port: "8080"
+  timeout: "10s"
+  image_quality: 90

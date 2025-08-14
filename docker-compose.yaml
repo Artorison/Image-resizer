@@ -1,0 +1,10 @@
+services:
+  image-processor:
+    build:
+      dockerfile: Dockerfile
+    image: resizer:latest
+    container_name: image-processor
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./configs/config.yaml:/resizer/config.yaml:ro

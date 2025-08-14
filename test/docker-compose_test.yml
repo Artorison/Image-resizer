@@ -1,0 +1,24 @@
+services:
+  nginx:
+    image: nginx:1.29.0-alpine
+    container_name: test-nginx
+    ports:
+      - "8085:80"
+    volumes:
+      - ./images:/usr/share/nginx/html/images
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+  image-processor-test:
+    build:
+      context: ../
+      dockerfile: Dockerfile
+    image: resizer:latest
+    container_name: image-processor-test
+    ports:
+      - "8089:8080"
+    depends_on:
+      - nginx
+    entrypoint: ["./image-resizer"]
+    command: ["--config=/resizer/config_test.yaml"]
+    volumes:
+      - ./test_config.yaml:/resizer/config_test.yaml:ro
+      
