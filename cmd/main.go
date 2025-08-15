@@ -42,7 +42,11 @@ func main() {
 
 	router := echo.New()
 	appl := app.New(router, cfg, logg, handler)
+
+	appl.SetupFront()
+
 	appl.RegisterRoutes()
+
 	go appl.Start()
 
 	<-ctx.Done()

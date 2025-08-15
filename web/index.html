@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Image Resizer</title>
+  <style>
+    :root{--bg:#0b0c10;--card:#121317;--text:#e9e9ee;--muted:#a7a7b3;--accent:#6aa1ff;--danger:#ff6a6a;--ok:#5dd39e}
+    html,body{height:100%}
+    body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif}
+    .wrap{max-width:900px;margin:0 auto;padding:24px}
+    .card{background:var(--card);border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.35);padding:20px}
+    h1{font-size:24px;margin:0 0 12px}
+    p{color:var(--muted);margin:0 0 20px}
+    form{display:grid;gap:12px;grid-template-columns:1fr 140px 140px auto}
+    label{font-size:12px;color:var(--muted)}
+    .field{display:flex;flex-direction:column;gap:6px}
+    input[type="url"],input[type="number"]{background:#0f1116;border:1px solid #262836;color:var(--text);border-radius:12px;padding:10px 12px;outline:none}
+    input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(106,161,255,.15)}
+    button{border:0;border-radius:12px;padding:10px 16px;background:var(--accent);color:#0b0c10;font-weight:600;cursor:pointer}
+    button:disabled{opacity:.6;cursor:not-allowed}
+    .ghost{background:transparent;border:1px solid #262836;color:var(--text)}
+    .result{margin-top:20px;display:grid;gap:14px}
+    .actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .pill{font-size:12px;border:1px solid #262836;border-radius:999px;padding:6px 10px;color:var(--muted)}
+    .pill.ok{border-color:#2a5746;color:var(--ok)}
+    .pill.err{border-color:#5a2a2a;color:var(--danger)}
+    .viewer{position:relative;background:#0f1116;border:1px solid #262836;border-radius:14px;min-height:240px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+    .viewer img{max-width:100%;height:auto;display:block}
+    .spinner{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+    .spinner.hidden{display:none}
+    .ring{width:36px;height:36px;border-radius:50%;border:3px solid #2a2d3d;border-top-color:var(--accent);animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @media (max-width:820px){form{grid-template-columns:1fr 1fr 1fr} .btns{grid-column:1 / -1;display:flex;gap:10px}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Image Resizer</h1>
+      <p>Paste an image URL and set width and height.</p>
+      <form id="form">
+        <div class="field">
+          <label for="src">Image URL</label>
+          <input id="src" name="src" type="url" placeholder="https://picsum.photos/seed/go/800/600" required />
+        </div>
+        <div class="field">
+          <label for="w">Width (px)</label>
+          <input id="w" name="w" type="number" min="1" step="1" placeholder="300" required />
+        </div>
+        <div class="field">
+          <label for="h">Height (px)</label>
+          <input id="h" name="h" type="number" min="1" step="1" placeholder="200" required />
+        </div>
+        <div class="btns" style="display:flex;gap:10px;align-items:end">
+          <button id="submit" type="submit">Resize</button>
+          <button id="reset" type="button" class="ghost">Reset</button>
+        </div>
+      </form>
+      <div class="result" id="resultWrap" style="display:none">
+        <div class="actions">
+          <span class="pill" id="builtUrlPill">URL</span>
+          <a id="openLink" class="pill" href="#" target="_blank" rel="noopener">Open</a>
+          <button id="copyBtn" class="ghost" type="button">Copy URL</button>
+          <span id="statusPill" class="pill">-</span>
+        </div>
+        <div class="viewer">
+          <div class="spinner hidden" id="spinner"><div class="ring"></div></div>
+          <img id="preview" alt="Result" />
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const form = document.getElementById('form');
+    const srcInput = document.getElementById('src');
+    const wInput = document.getElementById('w');
+    const hInput = document.getElementById('h');
+    const resultWrap = document.getElementById('resultWrap');
+    const preview = document.getElementById('preview');
+    const openLink = document.getElementById('openLink');
+    const copyBtn = document.getElementById('copyBtn');
+    const statusPill = document.getElementById('statusPill');
+    const spinner = document.getElementById('spinner');
+    const resetBtn = document.getElementById('reset');
+    const builtUrlPill = document.getElementById('builtUrlPill');
+
+    function norm(u){ try{ return decodeURIComponent(u.trim()); }catch{ return u.trim(); } }
+    function enc(u){ return encodeURIComponent(norm(u)); }
+    function buildUrl(w,h,src){ return "/fill/"+w+"/"+h+"/"+enc(src); }
+
+    function showSpinner(on){ spinner.classList.toggle("hidden", !on); }
+    function setStatus(t, ok){ statusPill.textContent=t; statusPill.classList.toggle("ok", !!ok); statusPill.classList.toggle("err", !ok); }
+    function persist(){ localStorage.setItem("img.src", srcInput.value); localStorage.setItem("img.w", wInput.value); localStorage.setItem("img.h", hInput.value); }
+    function restore(){ const s=localStorage.getItem("img.src")||"https://picsum.photos/seed/go/800/600"; const w=localStorage.getItem("img.w")||"300"; const h=localStorage.getItem("img.h")||"200"; srcInput.value=s; wInput.value=w; hInput.value=h; }
+    restore();
+
+    form.addEventListener("submit", function(e){
+      e.preventDefault();
+      const src = srcInput.value;
+      const w = parseInt(wInput.value,10);
+      const h = parseInt(hInput.value,10);
+      if(!src || !Number.isFinite(w) || !Number.isFinite(h) || w<=0 || h<=0){ setStatus("Invalid fields", false); resultWrap.style.display="grid"; return; }
+      const url = buildUrl(w,h,src);
+      openLink.href = url;
+      builtUrlPill.textContent = url.length>60?url.slice(0,57)+"...":url;
+      resultWrap.style.display="grid";
+      showSpinner(true);
+      setStatus("Loading...", true);
+      preview.onload=function(){ showSpinner(false); setStatus("Done", true); };
+      preview.onerror=function(){ showSpinner(false); setStatus("Download error", false); };
+      preview.src = url;
+      persist();
+    });
+
+    copyBtn.addEventListener("click", async function(){
+      const href = openLink.getAttribute("href");
+      try{ await navigator.clipboard.writeText(href); setStatus("Copied", true);}catch{ setStatus("Copy failed", false);} 
+    });
+
+    resetBtn.addEventListener("click", function(){
+      srcInput.value=""; wInput.value=""; hInput.value="";
+      setStatus("-", true);
+      preview.removeAttribute("src");
+      resultWrap.style.display="none";
+    });
+  </script>
+</body>
+</html>

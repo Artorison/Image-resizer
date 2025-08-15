@@ -10,6 +10,8 @@ WORKDIR /resizer
 
 COPY --from=builder /resizer/bin/* ./
 
+COPY web ./web
+
 EXPOSE 8080
 
 CMD ["./image-resizer", "--config", "config.yaml"]

@@ -75,20 +75,21 @@ func parseParams(c echo.Context) (*models.ImageParams, error) {
 		return nil, fmt.Errorf("empty source URL")
 	}
 
-	if q := c.Request().URL.RawQuery; q != "" {
-		raw += "?" + q
-	}
-
-	var full string
-	if strings.HasPrefix(raw, "http://") || strings.HasPrefix(raw, "https://") {
-		full = raw
-	} else {
-		full = "https://" + raw
-	}
-
-	srcURL, err := url.Parse(full)
+	dec, err := url.PathUnescape(raw)
 	if err != nil {
-		return nil, fmt.Errorf("invalid source URL %v: %w", full, err)
+		return nil, fmt.Errorf("invalid source url encoding: %w", err)
+	}
+
+	if !strings.HasPrefix(dec, "http://") && !strings.HasPrefix(dec, "https://") {
+		dec = "https://" + dec
+	}
+
+	srcURL, err := url.Parse(dec)
+	if err != nil {
+		return nil, fmt.Errorf("invalid source URL %v: %w", dec, err)
+	}
+	if srcURL.Host == "" {
+		return nil, fmt.Errorf("invalid source URL: empty host")
 	}
 
 	key := helpers.GenerateCacheKey(w, h, srcURL.String())
@@ -97,7 +98,7 @@ func parseParams(c echo.Context) (*models.ImageParams, error) {
 		Width:      w,
 		Height:     h,
 		SourceURL:  srcURL,
-		OriginLink: full,
+		OriginLink: srcURL.String(),
 		CacheKey:   key,
 	}, nil
 }

@@ -4,9 +4,10 @@ import (
 	"log/slog"
 
 	"github.com/Artorison/Image-resizer/internal/config"
-	"github.com/Artorison/Image-resizer/internal/middleware"
+	mw "github.com/Artorison/Image-resizer/internal/middleware"
 	"github.com/Artorison/Image-resizer/pkg/logger"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 )
 
 type Handlers interface {
@@ -42,6 +43,14 @@ func (a *App) Start() {
 }
 
 func (a *App) RegisterRoutes() {
-	a.Router.Use(middleware.Recover(), middleware.LoggingMV())
+	a.Router.Use(mw.Recover(), mw.LoggingMV())
 	a.Router.GET("/fill/:width/:height/*", a.Handlers.GetImage)
+}
+
+func (a *App) SetupFront() {
+	a.Router.HideBanner = true
+	a.Router.Pre(middleware.RemoveTrailingSlash())
+
+	a.Router.Static("/", "web")
+	a.Router.File("/", "web/index.html")
 }

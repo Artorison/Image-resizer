@@ -15,7 +15,7 @@ run: build
 	@$(BIN) --config $(CONFIG_FILE)
 
 up:
-	$(DC) up --build
+	$(DC) up
 
 down:
 	$(DC) down
